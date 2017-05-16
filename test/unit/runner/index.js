@@ -11,6 +11,7 @@ const Runner = require('lib/runner');
 const BrowserRunner = require('lib/runner/browser-runner');
 const StateProcessor = require('lib/state-processor/state-processor');
 const SuiteMonitor = require('lib/suite-monitor');
+const TestCounter = require('lib/test-counter');
 
 describe('runner', () => {
     const sandbox = sinon.sandbox.create();
@@ -300,13 +301,17 @@ describe('runner', () => {
                     .then(() => assert.callOrder(BrowserRunner.prototype.run, Coverage.prototype.processStats));
             });
 
-            it('should emit "END" event', () => {
+            it('should emit "END" event with result of test counter', () => {
+                sandbox.stub(TestCounter.prototype, 'getResult').returns({foo: 'bar'});
                 const runner = createRunner({config: stubConfig({isCoverageEnabled: true})});
                 const onEnd = sinon.spy().named('onEnd');
 
                 runner.on(Events.END, onEnd);
 
-                return run(runner).then(() => assert.calledOnce(onEnd));
+                return run(runner).then(() => {
+                    assert.calledOnce(onEnd);
+                    assert.calledWith(onEnd, {foo: 'bar'});
+                });
             });
 
             it('should emit "END" event after collecting of a coverage', () => {
@@ -390,6 +395,15 @@ describe('runner', () => {
         });
 
         describe('handling of events from browser runner', () => {
+            beforeEach(() => {
+                sandbox.stub(TestCounter.prototype, 'onUpdated');
+                sandbox.stub(TestCounter.prototype, 'onPassed');
+                sandbox.stub(TestCounter.prototype, 'onFailed');
+                sandbox.stub(TestCounter.prototype, 'onErrored');
+                sandbox.stub(TestCounter.prototype, 'onSkipped');
+                sandbox.stub(TestCounter.prototype, 'onRetry');
+            });
+
             const testPassthrough = (event, msg) => {
                 it(msg || `${event}`, () => {
                     stubBrowserRunner((runner) => runner.emit(event, {foo: 'bar'}));
@@ -433,7 +447,7 @@ describe('runner', () => {
                 });
 
                 it('should not save coverage if it is disabled', () => {
-                    stubBrowserRunner((runner) => runner.emit(event));
+                    stubBrowserRunner((runner) => runner.emit(event, {updated: true}));
 
                     const runner = createRunner({config: stubConfig({isCoverageEnabled: false})});
 
@@ -484,7 +498,7 @@ describe('runner', () => {
                 });
 
                 it('should emit "testResult" event after "endTest" one', () => {
-                    stubBrowserRunner((runner) => runner.emit(Events.TEST_RESULT));
+                    stubBrowserRunner((runner) => runner.emit(Events.TEST_RESULT, {equal: true}));
 
                     const runner = createRunner();
                     const onEndTest = sinon.spy().named('onEndTest');
@@ -497,6 +511,64 @@ describe('runner', () => {
                 });
 
                 testCoverage(Events.TEST_RESULT);
+            });
+
+            describe('init test counter', () => {
+                it('should increase skip counter on "skip" event', () => {
+                    stubBrowserRunner((runner) => runner.emit(Events.SKIP_STATE, {foo: 'bar'}));
+
+                    const runner = createRunner();
+
+                    return run(runner).then(() => assert.calledWith(TestCounter.prototype.onSkipped, {foo: 'bar'}));
+                });
+
+                it('should increase fail counter on "error" event', () => {
+                    stubBrowserRunner((runner) => runner.emit(Events.ERROR, {foo: 'bar'}));
+
+                    const runner = createRunner();
+
+                    return run(runner).then(() => assert.calledWith(TestCounter.prototype.onFailed, {foo: 'bar'}));
+                });
+
+                it('should increase retry counter on "retry" event', () => {
+                    stubBrowserRunner((runner) => runner.emit(Events.RETRY, {foo: 'bar'}));
+
+                    const runner = createRunner();
+
+                    return run(runner).then(() => assert.calledWith(TestCounter.prototype.onRetry, {foo: 'bar'}));
+                });
+
+                it('should increase update counter if reference image has been changed', () => {
+                    stubBrowserRunner((runner) => runner.emit(Events.UPDATE_RESULT, {updated: true}));
+
+                    const runner = createRunner();
+
+                    return run(runner).then(() => assert.calledWith(TestCounter.prototype.onUpdated, {updated: true}));
+                });
+
+                it('should increase pass counter if reference image has not been changed', () => {
+                    stubBrowserRunner((runner) => runner.emit(Events.UPDATE_RESULT, {updated: false}));
+
+                    const runner = createRunner();
+
+                    return run(runner).then(() => assert.calledWith(TestCounter.prototype.onPassed, {updated: false}));
+                });
+
+                it('should increase pass counter if images are equal', () => {
+                    stubBrowserRunner((runner) => runner.emit(Events.TEST_RESULT, {equal: true}));
+
+                    const runner = createRunner();
+
+                    return run(runner).then(() => assert.calledWith(TestCounter.prototype.onPassed, {equal: true}));
+                });
+
+                it('should increase fail counter if images are not equal', () => {
+                    stubBrowserRunner((runner) => runner.emit(Events.TEST_RESULT, {equal: false}));
+
+                    const runner = createRunner();
+
+                    return run(runner).then(() => assert.calledWith(TestCounter.prototype.onFailed, {equal: false}));
+                });
             });
         });
     });
