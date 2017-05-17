@@ -11,6 +11,7 @@ const Runner = require('lib/runner');
 const Events = require('lib/constants/events');
 const SuiteCollection = require('lib/suite-collection');
 const temp = require('lib/temp');
+const pool = require('lib/browser-pool');
 
 const mkSuiteStub = require('../util').makeSuiteStub;
 const mkStateStub = require('../util').makeStateStub;
@@ -64,10 +65,17 @@ describe('gemini', () => {
         return gemini.test([], opts.cliOpts);
     };
 
+    const mkConfigStub = (opts) => {
+        return _.defaults(opts || {}, {
+            isCoverageEnabled: () => 0,
+            getBrowserIds: () => []
+        });
+    };
+
     beforeEach(() => {
-        sandbox.stub(Runner.prototype, 'on').returnsThis();
         sandbox.stub(Runner.prototype, 'run').returns(Promise.resolve());
         sandbox.stub(Runner.prototype, 'cancel').returns(Promise.resolve());
+        sandbox.stub(pool, 'create');
         sandbox.stub(console, 'warn');
         sandbox.stub(pluginsLoader, 'load');
         sandbox.stub(temp, 'init');
@@ -121,6 +129,17 @@ describe('gemini', () => {
             assert.calledOnce(spy);
             assert.calledWith(spy, 'value');
         });
+    });
+
+    it('should return statistic after the tests are completed', () => {
+        const runner = new Runner(mkConfigStub());
+
+        sandbox.stub(Runner, 'create').returns(runner);
+        Runner.prototype.run = () => Promise.resolve(runner.emit(Events.END, {foo: 'bar'}));
+
+        const gemini = initGemini({});
+
+        return gemini.test().then((stats) => assert.deepEqual(stats, {foo: 'bar'}));
     });
 
     describe('load plugins', () => {
