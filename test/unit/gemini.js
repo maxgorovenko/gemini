@@ -10,6 +10,7 @@ const Config = require('lib/config');
 const Runner = require('lib/runner');
 const Events = require('lib/constants/events');
 const SuiteCollection = require('lib/suite-collection');
+const BrowserRunner = require('lib/runner/browser-runner');
 const temp = require('lib/temp');
 const pool = require('lib/browser-pool');
 
@@ -72,10 +73,33 @@ describe('gemini', () => {
         });
     };
 
-    beforeEach(() => {
-        sandbox.stub(Runner.prototype, 'run').returns(Promise.resolve());
-        sandbox.stub(Runner.prototype, 'cancel').returns(Promise.resolve());
+    const mkTestStub = (opts) => {
+        return _.defaultsDeep(opts || {}, {
+            suite: {},
+            state: {name: 'default-name'}
+        });
+    };
+
+    const mkBrowserRunnerStub = (opts) => {
+        const browserRunner = new EventEmitter();
+
+        browserRunner.run = () => {
+            browserRunner.emit(opts.event, mkTestStub({state: {name: opts.stateName}}));
+            Promise.resolve();
+        };
+
+        return browserRunner;
+    };
+
+    const mkRunnerStub = (opts) => {
+        opts = _.defaults(opts || {}, {config: mkConfigStub()});
         sandbox.stub(pool, 'create');
+
+        return new Runner(opts.config || mkConfigStub(), {prepare: () => {}});
+    };
+
+    beforeEach(() => {
+        sandbox.stub(Runner.prototype, 'cancel').returns(Promise.resolve());
         sandbox.stub(console, 'warn');
         sandbox.stub(pluginsLoader, 'load');
         sandbox.stub(temp, 'init');
@@ -132,14 +156,32 @@ describe('gemini', () => {
     });
 
     it('should return statistic after the tests are completed', () => {
-        const runner = new Runner(mkConfigStub());
-
+        const runner = mkRunnerStub();
         sandbox.stub(Runner, 'create').returns(runner);
-        Runner.prototype.run = () => Promise.resolve(runner.emit(Events.END, {foo: 'bar'}));
+
+        sandbox.stub(Runner.prototype, 'run', () => {
+            runner.emit(Events.END, {foo: 'bar'});
+            return Promise.resolve();
+        });
+        const gemini = initGemini({});
+
+        return gemini.test()
+            .then((stats) => assert.deepEqual(stats, {foo: 'bar'}));
+    });
+
+    it('should aggregate statistic for all browsers', () => {
+        sandbox.stub(BrowserRunner, 'create')
+            .onFirstCall().returns(mkBrowserRunnerStub({event: Events.ERROR, stateName: 'some-name'}))
+            .onSecondCall().returns(mkBrowserRunnerStub({event: Events.ERROR, stateName: 'other-name'}));
+
+        const config = mkConfigStub({getBrowserIds: () => ['bro1', 'bro2']});
+        const runner = mkRunnerStub({config});
+        sandbox.stub(Runner, 'create').returns(runner);
 
         const gemini = initGemini({});
 
-        return gemini.test().then((stats) => assert.deepEqual(stats, {foo: 'bar'}));
+        return gemini.test()
+            .then((stats) => assert.equal(stats.total, 2));
     });
 
     describe('load plugins', () => {
@@ -323,6 +365,10 @@ describe('gemini', () => {
     });
 
     describe('test', () => {
+        beforeEach(() => {
+            sandbox.stub(Runner.prototype, 'run').returns(Promise.resolve());
+        });
+
         it('should initialize temp with specified temp dir', () => {
             runGeminiTest({tempDir: '/some/dir'});
 
@@ -424,8 +470,6 @@ describe('gemini', () => {
 
     describe('on "INTERRUPT"', () => {
         const stubRunner = (scenario) => {
-            Runner.prototype.run.restore();
-
             sandbox.stub(Runner.prototype, 'run', function() {
                 return Promise.resolve(scenario(this));
             });

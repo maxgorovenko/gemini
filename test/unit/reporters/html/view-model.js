@@ -49,4 +49,13 @@ describe('ViewModel', () => {
 
         assert.equal(metaInfo.url, '/test/url');
     });
+
+    it('should not modify passed statistic', () => {
+        const model = mkViewModel_();
+        const stat = {foo: 'bar'};
+
+        model.getResult(stat);
+
+        assert.deepEqual(stat, {foo: 'bar'});
+    });
 });

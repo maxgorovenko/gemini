@@ -1,4 +1,3 @@
-
 'use strict';
 
 const EventEmitter = require('events').EventEmitter;
@@ -23,7 +22,8 @@ describe('Stats', () => {
 
     beforeEach(() => {
         runner = new EventEmitter();
-        stats = new Stats(runner);
+        stats = new Stats();
+        stats.attachRunner(runner);
     });
 
     it('should count skipped tests', () => {
@@ -93,8 +93,7 @@ describe('Stats', () => {
             failed: 1,
             errored: 1,
             skipped: 1,
-            retries: 1,
-            warned: 0
+            retries: 1
         });
     });
 

@@ -316,20 +316,6 @@ describe('runner', () => {
                 });
             });
 
-            it('should emit "END" event with empty object if test counter returns undefined', () => {
-                sandbox.stub(RunnerStats, 'create');
-                RunnerStats.create.returns(undefined);
-                const runner = createRunner({config: stubConfig({isCoverageEnabled: true})});
-                const onEnd = sinon.spy().named('onEnd');
-
-                runner.on(Events.END, onEnd);
-
-                return run(runner).then(() => {
-                    assert.calledOnce(onEnd);
-                    assert.calledWith(onEnd, {});
-                });
-            });
-
             it('should emit "END" event after collecting of a coverage', () => {
                 const runner = createRunner({config: stubConfig({isCoverageEnabled: true})});
                 const onEnd = sinon.spy().named('onEnd');
@@ -412,7 +398,7 @@ describe('runner', () => {
 
         describe('handling of events from browser runner', () => {
             beforeEach(() => {
-                sandbox.stub(RunnerStats, 'create');
+                sandbox.stub(RunnerStats.prototype, 'attachRunner');
             });
 
             const testPassthrough = (event, msg) => {

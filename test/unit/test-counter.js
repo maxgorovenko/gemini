@@ -54,22 +54,20 @@ describe('TestCounter', () => {
             });
         });
 
-        it('should calculate total from `updated`, `passed`, `failed`, `errored`, `skipped` and `warned`', () => {
+        it('should calculate total from `updated`, `passed`, `failed`, `errored` and `skipped`', () => {
             const updated = stubTest({state: 'updated'});
             const passed = stubTest({state: 'passed'});
             const failed = stubTest({state: 'failed'});
             const errored = stubTest({state: 'errored'});
             const skipped = stubTest({state: 'skipped'});
-            const warned = stubTest({state: 'warned'});
 
             counter.onUpdated(updated);
             counter.onPassed(passed);
             counter.onFailed(failed);
             counter.onErrored(errored);
             counter.onSkipped(skipped);
-            counter.onWarned(warned);
 
-            assert.equal(counter.getResult().total, 6);
+            assert.equal(counter.getResult().total, 5);
         });
 
         it('should not add retries to total', () => {
