@@ -41,7 +41,7 @@ describe('runner', () => {
     const stubBrowserRunner = (scenario) => {
         BrowserRunner.prototype.run.restore();
 
-        sandbox.stub(BrowserRunner.prototype, 'run', function() {
+        sandbox.stub(BrowserRunner.prototype, 'run').callsFake(function() {
             return Promise.resolve(scenario(this));
         });
     };

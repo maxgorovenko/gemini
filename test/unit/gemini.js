@@ -159,7 +159,7 @@ describe('gemini', () => {
         const runner = mkRunnerStub();
         sandbox.stub(Runner, 'create').returns(runner);
 
-        sandbox.stub(Runner.prototype, 'run', () => {
+        sandbox.stub(Runner.prototype, 'run').callsFake(() => {
             runner.emit(Events.END, {foo: 'bar'});
             return Promise.resolve();
         });
@@ -470,7 +470,7 @@ describe('gemini', () => {
 
     describe('on "INTERRUPT"', () => {
         const stubRunner = (scenario) => {
-            sandbox.stub(Runner.prototype, 'run', function() {
+            sandbox.stub(Runner.prototype, 'run').callsFake(() => {
                 return Promise.resolve(scenario(this));
             });
         };
