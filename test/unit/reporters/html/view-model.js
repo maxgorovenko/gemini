@@ -1,7 +1,7 @@
 'use strict';
 
-const _ = require('lodash');
 const ViewModel = require('lib/reporters/html/view-model');
+const makeTestStub = require('../../../util').makeTestStub;
 
 describe('ViewModel', () => {
     const sandbox = sinon.sandbox.create();
@@ -13,23 +13,10 @@ describe('ViewModel', () => {
 
     const getModelResult_ = (model) => model.getResult().suites[0].children[0].browsers[0].result;
 
-    const stubTest_ = (opts) => {
-        opts = opts || {};
-
-        return _.defaultsDeep(opts, {
-            state: {name: 'name-default'},
-            suite: {
-                path: ['suite'],
-                metaInfo: {sessionId: 'sessionId-default'},
-                file: 'default/path/file.js'
-            }
-        });
-    };
-
     it('should contain "file" in "metaInfo"', () => {
         const model = mkViewModel_();
 
-        model.addSuccess(stubTest_({
+        model.addSuccess(makeTestStub({
             suite: {file: '/path/file.js'}
         }));
 
@@ -41,7 +28,7 @@ describe('ViewModel', () => {
     it('should contain "url" in "metaInfo"', () => {
         const model = mkViewModel_();
 
-        model.addSuccess(stubTest_({
+        model.addSuccess(makeTestStub({
             suite: {fullUrl: '/test/url'}
         }));
 

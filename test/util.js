@@ -63,6 +63,27 @@ function makeStateStub(suite, opts) {
     return state;
 }
 
+function makeTestStub(opts) {
+    opts = _.defaults(opts || {}, {
+        name: 'default-name',
+        updated: false,
+        equal: false
+    });
+
+    return _.defaultsDeep(opts, {
+        state: {fullName: 'full-' + opts.name, name: opts.name},
+        suite: {
+            fullName: 'full-default-suite-name',
+            name: 'default-suite-name',
+            path: ['suite'],
+            metaInfo: {sessionId: 'sessionId-default'},
+            file: 'default/path/file.js'
+        },
+        updated: opts.updated,
+        equal: opts.equal
+    });
+}
+
 /**
  * Makes suite tree
  * @param {Object} sceleton, keys must be unique for all levels
@@ -128,6 +149,7 @@ module.exports = {
     browserWithId,
     makeStateStub,
     makeSuiteStub,
+    makeTestStub,
     makeSuiteTree,
     rejectedPromise
 };

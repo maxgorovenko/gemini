@@ -61,7 +61,7 @@ describe('Reporter#Flat', () => {
         });
     });
 
-    it('should log result from test counter', () => {
+    it('should log result from stats', () => {
         emit(Events.END, {
             total: 15,
             updated: 1,

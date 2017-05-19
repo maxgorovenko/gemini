@@ -10,7 +10,6 @@ const Config = require('lib/config');
 const Runner = require('lib/runner');
 const Events = require('lib/constants/events');
 const SuiteCollection = require('lib/suite-collection');
-const BrowserRunner = require('lib/runner/browser-runner');
 const temp = require('lib/temp');
 const pool = require('lib/browser-pool');
 
@@ -71,24 +70,6 @@ describe('gemini', () => {
             isCoverageEnabled: () => 0,
             getBrowserIds: () => []
         });
-    };
-
-    const mkTestStub = (opts) => {
-        return _.defaultsDeep(opts || {}, {
-            suite: {},
-            state: {name: 'default-name'}
-        });
-    };
-
-    const mkBrowserRunnerStub = (opts) => {
-        const browserRunner = new EventEmitter();
-
-        browserRunner.run = () => {
-            browserRunner.emit(opts.event, mkTestStub({state: {name: opts.stateName}}));
-            Promise.resolve();
-        };
-
-        return browserRunner;
     };
 
     const mkRunnerStub = (opts) => {
@@ -167,21 +148,6 @@ describe('gemini', () => {
 
         return gemini.test()
             .then((stats) => assert.deepEqual(stats, {foo: 'bar'}));
-    });
-
-    it('should aggregate statistic for all browsers', () => {
-        sandbox.stub(BrowserRunner, 'create')
-            .onFirstCall().returns(mkBrowserRunnerStub({event: Events.ERROR, stateName: 'some-name'}))
-            .onSecondCall().returns(mkBrowserRunnerStub({event: Events.ERROR, stateName: 'other-name'}));
-
-        const config = mkConfigStub({getBrowserIds: () => ['bro1', 'bro2']});
-        const runner = mkRunnerStub({config});
-        sandbox.stub(Runner, 'create').returns(runner);
-
-        const gemini = initGemini({});
-
-        return gemini.test()
-            .then((stats) => assert.equal(stats.total, 2));
     });
 
     describe('load plugins', () => {

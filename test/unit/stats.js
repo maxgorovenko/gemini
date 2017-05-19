@@ -1,24 +1,13 @@
 'use strict';
 
 const EventEmitter = require('events').EventEmitter;
-const _ = require('lodash');
 const RunnerEvents = require('../../lib/constants/events');
 const Stats = require('../../lib/stats');
+const makeTestStub = require('../util').makeTestStub;
 
 describe('Stats', () => {
     let stats;
     let runner;
-
-    const stubTest = (opts) => {
-        opts = _.defaults(opts || {}, {name: 'default-name'});
-
-        return {
-            state: {fullName: 'full-' + opts.name, name: opts.name},
-            suite: {fullName: 'full-default-suite-name', name: 'default-suite-name'},
-            updated: opts.updated,
-            equal: opts.equal
-        };
-    };
 
     beforeEach(() => {
         runner = new EventEmitter();
@@ -27,66 +16,66 @@ describe('Stats', () => {
     });
 
     it('should count skipped tests', () => {
-        runner.emit(RunnerEvents.SKIP_STATE, stubTest());
+        runner.emit(RunnerEvents.SKIP_STATE, makeTestStub());
 
-        assert.equal(stats.get().skipped, 1);
+        assert.equal(stats.getResult().skipped, 1);
     });
 
     it('should count errored tests', () => {
-        runner.emit(RunnerEvents.ERROR, stubTest());
+        runner.emit(RunnerEvents.ERROR, makeTestStub());
 
-        assert.equal(stats.get().errored, 1);
+        assert.equal(stats.getResult().errored, 1);
     });
 
     it('should count updated tests', () => {
-        runner.emit(RunnerEvents.UPDATE_RESULT, stubTest({updated: true}));
+        runner.emit(RunnerEvents.UPDATE_RESULT, makeTestStub({updated: true}));
 
-        assert.equal(stats.get().updated, 1);
+        assert.equal(stats.getResult().updated, 1);
     });
 
     it('should count passed tests on "UPDATE_RESULT" event', () => {
-        runner.emit(RunnerEvents.UPDATE_RESULT, stubTest({updated: false}));
+        runner.emit(RunnerEvents.UPDATE_RESULT, makeTestStub({updated: false}));
 
-        assert.equal(stats.get().passed, 1);
+        assert.equal(stats.getResult().passed, 1);
     });
 
     it('should count failed tests on "TEST_RESULT" event', () => {
-        runner.emit(RunnerEvents.TEST_RESULT, stubTest({equal: false}));
+        runner.emit(RunnerEvents.TEST_RESULT, makeTestStub({equal: false}));
 
-        assert.equal(stats.get().failed, 1);
+        assert.equal(stats.getResult().failed, 1);
     });
 
     it('should count passed tests on "TEST_RESULT" event', () => {
-        runner.emit(RunnerEvents.TEST_RESULT, stubTest({equal: true}));
+        runner.emit(RunnerEvents.TEST_RESULT, makeTestStub({equal: true}));
 
-        assert.equal(stats.get().passed, 1);
+        assert.equal(stats.getResult().passed, 1);
     });
 
     it('should count retried tests on "RETRY" event', () => {
-        runner.emit(RunnerEvents.RETRY, stubTest({name: 'some-test'}));
-        runner.emit(RunnerEvents.TEST_RESULT, stubTest({equal: true, name: 'some-test'}));
+        runner.emit(RunnerEvents.RETRY, makeTestStub({name: 'some-test'}));
+        runner.emit(RunnerEvents.TEST_RESULT, makeTestStub({equal: true, name: 'some-test'}));
 
-        assert.equal(stats.get().total, 1);
-        assert.equal(stats.get().retries, 1);
-        assert.equal(stats.get().passed, 1);
+        assert.equal(stats.getResult().total, 1);
+        assert.equal(stats.getResult().retries, 1);
+        assert.equal(stats.getResult().passed, 1);
     });
 
     it('should count total test count', () => {
-        runner.emit(RunnerEvents.TEST_RESULT, stubTest({equal: false, name: 'first'}));
-        runner.emit(RunnerEvents.TEST_RESULT, stubTest({equal: true, name: 'second'}));
+        runner.emit(RunnerEvents.TEST_RESULT, makeTestStub({equal: false, name: 'first'}));
+        runner.emit(RunnerEvents.TEST_RESULT, makeTestStub({equal: true, name: 'second'}));
 
-        assert.equal(stats.get().total, 2);
+        assert.equal(stats.getResult().total, 2);
     });
 
-    it('should get full stat', () => {
-        runner.emit(RunnerEvents.UPDATE_RESULT, stubTest({updated: true, name: 'updated'}));
-        runner.emit(RunnerEvents.RETRY, stubTest({name: 'passed'}));
-        runner.emit(RunnerEvents.TEST_RESULT, stubTest({equal: true, name: 'passed'}));
-        runner.emit(RunnerEvents.TEST_RESULT, stubTest({equal: false, name: 'failed'}));
-        runner.emit(RunnerEvents.ERROR, stubTest({name: 'errored'}));
-        runner.emit(RunnerEvents.SKIP_STATE, stubTest({name: 'skipped'}));
+    it('should getResult full stat', () => {
+        runner.emit(RunnerEvents.UPDATE_RESULT, makeTestStub({updated: true, name: 'updated'}));
+        runner.emit(RunnerEvents.RETRY, makeTestStub({name: 'passed'}));
+        runner.emit(RunnerEvents.TEST_RESULT, makeTestStub({equal: true, name: 'passed'}));
+        runner.emit(RunnerEvents.TEST_RESULT, makeTestStub({equal: false, name: 'failed'}));
+        runner.emit(RunnerEvents.ERROR, makeTestStub({name: 'errored'}));
+        runner.emit(RunnerEvents.SKIP_STATE, makeTestStub({name: 'skipped'}));
 
-        assert.deepEqual(stats.get(), {
+        assert.deepEqual(stats.getResult(), {
             total: 5,
             updated: 1,
             passed: 1,
@@ -98,10 +87,23 @@ describe('Stats', () => {
     });
 
     it('should handle cases when several events were emitted for the same test', () => {
-        runner.emit(RunnerEvents.SKIP_STATE, stubTest({name: 'some-state'}));
-        runner.emit(RunnerEvents.ERROR, stubTest({name: 'some-state'}));
+        runner.emit(RunnerEvents.SKIP_STATE, makeTestStub({name: 'some-state'}));
+        runner.emit(RunnerEvents.ERROR, makeTestStub({name: 'some-state'}));
 
-        assert.equal(stats.get().skipped, 0);
-        assert.equal(stats.get().errored, 1);
+        assert.equal(stats.getResult().skipped, 0);
+        assert.equal(stats.getResult().errored, 1);
+    });
+
+    it('should not count test result twice for same suite and browser', () => {
+        const test = makeTestStub({
+            browserId: 'test_browser',
+            state: 'test_state'
+        });
+
+        runner.emit(RunnerEvents.ERROR, test);
+        runner.emit(RunnerEvents.ERROR, test);
+
+        assert.equal(stats.getResult().total, 1);
+        assert.equal(stats.getResult().errored, 1);
     });
 });
