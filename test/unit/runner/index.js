@@ -2,6 +2,7 @@
 
 const Promise = require('bluebird');
 const q = require('bluebird-q');
+const _ = require('lodash');
 const pool = require('lib/browser-pool');
 const Pool = require('lib/browser-pool/pool');
 const Config = require('lib/config');
@@ -13,7 +14,7 @@ const StateProcessor = require('lib/state-processor/state-processor');
 const RunnerStats = require('lib/stats');
 const SuiteMonitor = require('lib/suite-monitor');
 const EventEmitter = require('events').EventEmitter;
-const makeTestStub = require('../../util').makeTestStub;
+const makeStateResult = require('../../util').makeStateResult;
 
 describe('runner', () => {
     const sandbox = sinon.sandbox.create();
@@ -47,11 +48,14 @@ describe('runner', () => {
     };
 
     const mkBrowserRunnerStub = (opts) => {
+        opts = _.defaults(opts || {}, {
+            onRun: () => Promise.resolve()
+        });
         const browserRunner = new EventEmitter();
 
         browserRunner.run = () => {
-            browserRunner.emit(opts.event, makeTestStub({name: opts.stateName}));
-            Promise.resolve();
+            opts.onRun.call(browserRunner);
+            return Promise.resolve();
         };
 
         return browserRunner;
@@ -250,8 +254,16 @@ describe('runner', () => {
                 sandbox.stub(BrowserRunner, 'create');
 
                 BrowserRunner.create
-                    .onFirstCall().returns(mkBrowserRunnerStub({event: Events.ERROR, stateName: 'some-name'}))
-                    .onSecondCall().returns(mkBrowserRunnerStub({event: Events.ERROR, stateName: 'other-name'}));
+                    .onFirstCall().returns(mkBrowserRunnerStub({
+                        onRun: function() {
+                            this.emit(Events.ERROR, makeStateResult({name: 'some-name'}));
+                        }
+                    }))
+                    .onSecondCall().returns(mkBrowserRunnerStub({
+                        onRun: function() {
+                            this.emit(Events.ERROR, makeStateResult({name: 'other-name'}));
+                        }
+                    }));
 
                 const runner = createRunner();
                 runner.config.getBrowserIds.returns(['bro1', 'bro2']);
@@ -471,7 +483,7 @@ describe('runner', () => {
                 });
 
                 it('should not save coverage if it is disabled', () => {
-                    stubBrowserRunner((runner) => runner.emit(event, {updated: true}));
+                    stubBrowserRunner((runner) => runner.emit(event));
 
                     const runner = createRunner({config: stubConfig({isCoverageEnabled: false})});
 
@@ -487,7 +499,6 @@ describe('runner', () => {
                     Events.BEGIN_STATE,
                     Events.END_STATE,
                     Events.INFO,
-                    Events.WARNING,
                     Events.ERROR
                 ].forEach((event) => testPassthrough(event));
             });
@@ -522,7 +533,7 @@ describe('runner', () => {
                 });
 
                 it('should emit "testResult" event after "endTest" one', () => {
-                    stubBrowserRunner((runner) => runner.emit(Events.TEST_RESULT, {equal: true}));
+                    stubBrowserRunner((runner) => runner.emit(Events.TEST_RESULT));
 
                     const runner = createRunner();
                     const onEndTest = sinon.spy().named('onEndTest');

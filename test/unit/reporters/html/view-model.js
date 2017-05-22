@@ -1,7 +1,7 @@
 'use strict';
 
 const ViewModel = require('lib/reporters/html/view-model');
-const makeTestStub = require('../../../util').makeTestStub;
+const makeStateResult = require('../../../util').makeStateResult;
 
 describe('ViewModel', () => {
     const sandbox = sinon.sandbox.create();
@@ -16,7 +16,7 @@ describe('ViewModel', () => {
     it('should contain "file" in "metaInfo"', () => {
         const model = mkViewModel_();
 
-        model.addSuccess(makeTestStub({
+        model.addSuccess(makeStateResult({
             suite: {file: '/path/file.js'}
         }));
 
@@ -28,7 +28,7 @@ describe('ViewModel', () => {
     it('should contain "url" in "metaInfo"', () => {
         const model = mkViewModel_();
 
-        model.addSuccess(makeTestStub({
+        model.addSuccess(makeStateResult({
             suite: {fullUrl: '/test/url'}
         }));
 

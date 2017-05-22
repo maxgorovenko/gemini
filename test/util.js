@@ -43,6 +43,9 @@ function makeSuiteStub(opts) {
     if (opts.browsers) {
         suite.browsers = opts.browsers;
     }
+    if (opts.path) {
+        suite.path = opts.path;
+    }
     opts.states.forEach(function(state) {
         suite.addState(state);
     });
@@ -63,22 +66,23 @@ function makeStateStub(suite, opts) {
     return state;
 }
 
-function makeTestStub(opts) {
+function makeStateResult(opts) {
     opts = _.defaults(opts || {}, {
         name: 'default-name',
         updated: false,
         equal: false
     });
 
+    const suite = makeSuiteStub({
+        name: 'default-suite-name',
+        path: ['suite'],
+        file: 'default/path/file.js'
+    });
+    const state = makeStateStub(suite, {fullName: 'full-' + opts.name, name: opts.name});
+
     return _.defaultsDeep(opts, {
-        state: {fullName: 'full-' + opts.name, name: opts.name},
-        suite: {
-            fullName: 'full-default-suite-name',
-            name: 'default-suite-name',
-            path: ['suite'],
-            metaInfo: {sessionId: 'sessionId-default'},
-            file: 'default/path/file.js'
-        },
+        state,
+        suite,
         updated: opts.updated,
         equal: opts.equal
     });
@@ -149,7 +153,7 @@ module.exports = {
     browserWithId,
     makeStateStub,
     makeSuiteStub,
-    makeTestStub,
+    makeStateResult,
     makeSuiteTree,
     rejectedPromise
 };
