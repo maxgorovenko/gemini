@@ -2,7 +2,6 @@
 
 const Promise = require('bluebird');
 const q = require('bluebird-q');
-const _ = require('lodash');
 const pool = require('lib/browser-pool');
 const Pool = require('lib/browser-pool/pool');
 const Config = require('lib/config');
@@ -13,7 +12,6 @@ const BrowserRunner = require('lib/runner/browser-runner');
 const StateProcessor = require('lib/state-processor/state-processor');
 const RunnerStats = require('lib/stats');
 const SuiteMonitor = require('lib/suite-monitor');
-const EventEmitter = require('events').EventEmitter;
 const makeStateResult = require('../../util').makeStateResult;
 
 describe('runner', () => {
@@ -45,20 +43,6 @@ describe('runner', () => {
         BrowserRunner.prototype.run.callsFake(function() {
             return Promise.resolve(scenario(this));
         });
-    };
-
-    const mkBrowserRunnerStub = (opts) => {
-        opts = _.defaults(opts || {}, {
-            onRun: () => Promise.resolve()
-        });
-        const browserRunner = new EventEmitter();
-
-        browserRunner.run = () => {
-            opts.onRun.call(browserRunner);
-            return Promise.resolve();
-        };
-
-        return browserRunner;
     };
 
     beforeEach(() => {
@@ -250,20 +234,14 @@ describe('runner', () => {
             });
 
             it('should aggregate statistic for all browsers', () => {
-                BrowserRunner.create.restore();
-                sandbox.stub(BrowserRunner, 'create');
+                const emitStateResult_ = (name) => function() {
+                    this.emit(Events.ERROR, makeStateResult({name}));
+                    return Promise.resolve();
+                };
 
-                BrowserRunner.create
-                    .onFirstCall().returns(mkBrowserRunnerStub({
-                        onRun: function() {
-                            this.emit(Events.ERROR, makeStateResult({name: 'some-name'}));
-                        }
-                    }))
-                    .onSecondCall().returns(mkBrowserRunnerStub({
-                        onRun: function() {
-                            this.emit(Events.ERROR, makeStateResult({name: 'other-name'}));
-                        }
-                    }));
+                BrowserRunner.prototype.run
+                    .onFirstCall().callsFake(emitStateResult_('some-name'))
+                    .onSecondCall().callsFake(emitStateResult_('other-name'));
 
                 const runner = createRunner();
                 runner.config.getBrowserIds.returns(['bro1', 'bro2']);
@@ -499,6 +477,7 @@ describe('runner', () => {
                     Events.BEGIN_STATE,
                     Events.END_STATE,
                     Events.INFO,
+                    Events.WARNING,
                     Events.ERROR
                 ].forEach((event) => testPassthrough(event));
             });

@@ -62,6 +62,15 @@
     vertical-align: top;
 }
 
+.image-box_warning.image-box {
+    background-color: #ffe0b2;
+}
+
+.image-box_warning .reason {
+    background: none;
+    border: none;
+}
+
 .section__title {
     font-weight: bold;
     cursor: pointer;
@@ -79,7 +88,7 @@
     -moz-user-select: text;
     -webkit-user-select: text;
     -ms-user-select: text;
-    user-select: text;
+    user-select: text;    
 }
 
 .section__title:before, .meta-info__switcher:before {
@@ -96,6 +105,10 @@
 
 .section_status_fail > .section__title {
     color: #c00;
+}
+
+.section_status_warning > .section__title {
+    color: #f6a828;
 }
 
 .section_status_skip > .section__title,

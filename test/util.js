@@ -80,12 +80,7 @@ function makeStateResult(opts) {
     });
     const state = makeStateStub(suite, {fullName: 'full-' + opts.name, name: opts.name});
 
-    return _.defaultsDeep(opts, {
-        state,
-        suite,
-        updated: opts.updated,
-        equal: opts.equal
-    });
+    return _.defaultsDeep(opts, {state, suite});
 }
 
 /**
