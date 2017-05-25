@@ -11,7 +11,6 @@ const Runner = require('lib/runner');
 const Events = require('lib/constants/events');
 const SuiteCollection = require('lib/suite-collection');
 const temp = require('lib/temp');
-const pool = require('lib/browser-pool');
 
 const mkSuiteStub = require('../util').makeSuiteStub;
 const mkStateStub = require('../util').makeStateStub;
@@ -63,20 +62,6 @@ describe('gemini', () => {
         gemini.config.sets = opts.sets;
 
         return gemini.test([], opts.cliOpts);
-    };
-
-    const mkConfigStub = (opts) => {
-        return _.defaults(opts || {}, {
-            isCoverageEnabled: () => 0,
-            getBrowserIds: () => []
-        });
-    };
-
-    const mkRunnerStub = (opts) => {
-        opts = _.defaults(opts || {}, {config: mkConfigStub()});
-        sandbox.stub(pool, 'create');
-
-        return new Runner(opts.config || mkConfigStub(), {prepare: () => {}});
     };
 
     beforeEach(() => {
@@ -137,11 +122,8 @@ describe('gemini', () => {
     });
 
     it('should return statistic after the tests are completed', () => {
-        const runner = mkRunnerStub();
-        sandbox.stub(Runner, 'create').returns(runner);
-
-        sandbox.stub(Runner.prototype, 'run').callsFake(() => {
-            runner.emit(Events.END, {foo: 'bar'});
+        sandbox.stub(Runner.prototype, 'run').callsFake(function() {
+            this.emit(Events.END, {foo: 'bar'});
             return Promise.resolve();
         });
         const gemini = initGemini({});
@@ -436,9 +418,7 @@ describe('gemini', () => {
 
     describe('on "INTERRUPT"', () => {
         const stubRunner = (scenario) => {
-            sandbox.stub(Runner.prototype, 'run').callsFake(() => {
-                return Promise.resolve(scenario(this));
-            });
+            sandbox.stub(Runner.prototype, 'run').callsFake(() => Promise.resolve(scenario()));
         };
 
         const emulateRunnerInterrupt = (exitCode) => stubRunner(() => signalHandler.emit(Events.INTERRUPT, {exitCode}));

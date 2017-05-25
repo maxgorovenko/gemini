@@ -108,20 +108,7 @@ describe('Stats', () => {
         assert.equal(stats.getResult().errored, 1);
     });
 
-    it('should not count test result twice for same suite and browser', () => {
-        const test = makeStateResult({
-            browserId: 'test_browser',
-            state: 'test_state'
-        });
-
-        runner.emit(RunnerEvents.ERROR, test);
-        runner.emit(RunnerEvents.ERROR, test);
-
-        assert.equal(stats.getResult().total, 1);
-        assert.equal(stats.getResult().errored, 1);
-    });
-
-    it('should not count test result twice for same suite and browser', () => {
+    it('should not count test result twice for same state and browser', () => {
         const test = makeStateResult({
             browserId: 'test_browser',
             state: 'test_state'
